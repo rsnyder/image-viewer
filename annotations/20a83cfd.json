@@ -18,25 +18,5 @@
       }
     },
     "id": "#6dd1e0cc-2093-4f17-b1bb-f75b760c3221"
-  },
-  {
-    "@context": "http://www.w3.org/ns/anno.jsonld",
-    "type": "Annotation",
-    "body": [
-      {
-        "type": "TextualBody",
-        "value": "Another annotation",
-        "purpose": "commenting"
-      }
-    ],
-    "target": {
-      "source": "http://localhost:5173/undefined",
-      "selector": {
-        "type": "FragmentSelector",
-        "conformsTo": "http://www.w3.org/TR/media-frags/",
-        "value": "xywh=pixel:178.9990234375,1138.4814453125,454.90692138671875,205.5762939453125"
-      }
-    },
-    "id": "#76b8f9fa-5f16-498b-8e24-e62b5e72115e"
   }
 ]
