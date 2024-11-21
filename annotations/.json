@@ -1,0 +1,22 @@
+[
+  {
+    "@context": "http://www.w3.org/ns/anno.jsonld",
+    "type": "Annotation",
+    "body": [
+      {
+        "type": "TextualBody",
+        "value": "test",
+        "purpose": "commenting"
+      }
+    ],
+    "target": {
+      "source": "http://localhost:5173/undefined",
+      "selector": {
+        "type": "FragmentSelector",
+        "conformsTo": "http://www.w3.org/TR/media-frags/",
+        "value": "xywh=pixel:515.5970458984375,425.6334228515625,509.8055419921875,538.0829467773438"
+      }
+    },
+    "id": "#979aea57-b944-485a-bf02-79ec4bfab504"
+  }
+]
