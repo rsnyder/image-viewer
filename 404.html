@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/annotorious.min.css">
+  <style>
+    #osd { height: 400px; width: 100%; max-width: 640px; }
+    .caption { margin-top: .5em; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="osd"></div>
+  <div class="caption"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.0/build/openseadragon/openseadragon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/openseadragon-annotorious.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-md5@0.8.3/src/md5.min.js"></script>
+  <script type="module">
+
+    const md5Id = (url) => md5(url).slice(0,8)
+    const sha256 = async (str) => {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
+      return Array.prototype.map.call(new Uint8Array(buf), x=>(('00'+x.toString(16)).slice(-2))).join('')
+    }
+    const b64EncodeUnicode = (str) => btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode('0x' + p1)))
+    const b64DecodeUnicode = (str) => decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))
+
+    const annotationsBaseLocation = 'rsnyder/image-viewer/main/annotations'
+    const authToken = window.localStorage.getItem('gh-auth-token') || window.localStorage.getItem('gh-unscoped-token')
+
+    // recursive helper for finding items in a IIIF manifest
+    const _findItems = (toMatch, current, found) => {
+      found = found || []
+      if (current?.items) {
+        for (let i = 0; i < current.items.length; i++ ) {
+          let item = current.items[i]
+          let isMatch = !Object.entries(toMatch).find(([attr, val]) => item[attr] && item[attr] !== val)
+          if (isMatch) found.push(item)
+          else _findItems(toMatch, item, found)
+        }
+      }
+      return found
+    }
+
+    // find an item in a IIIF manifest
+    const findItem = (toMatch, current, seq) => {
+      seq = seq || 1
+      const found = _findItems(toMatch, current)
+      return found.length >= seq ? found[seq-1] : null
+    }
+
+    const pathElems = location.pathname.split('/').filter(e => e)
+    const isGhp = location.hostname.indexOf('.github.io') > 0
+
+    const imageSource = pathElems.slice(isGhp ? 1 : 0).join('/')
+    let imageUrl 
+
+    if (imageSource.indexOf('wc:') === 0) {
+      const wcFile = decodeURIComponent(imageSource.slice(3).replace(/File:/,'')).replace(/ /g,'_')
+      window.history.replaceState({}, '', `${isGhp ? '/' + pathElems[0] : ''}/wc:${wcFile}`)
+      const hash = md5(wcFile)
+      imageUrl = `https://upload.wikimedia.org/wikipedia/commons/${hash.slice(0,1)}/${hash.slice(0,2)}/${wcFile}`
+      fetch(`https://iiif.mdpress.io/wc:${wcFile}/manifest.json`).then(resp => resp.json()).then(manifest => {
+        console.log(manifest)
+        const itemInfo = findItem({type:'Annotation', motivation:'painting'}, manifest, 1)?.body
+        const tileSource = itemInfo.service
+          ? `${(itemInfo.service[0].id || itemInfo.service[0]['@id'])}/info.json`
+          : { url: itemInfo.id, type: 'image', buildPyramid: true }
+        init(tileSource)
+        const label = (manifest?.label?.en || manifest?.label?.none || Object.values(manifest.label)).join(' ')
+        document.querySelector('.caption').innerHTML = label      })
+    }
+
+    const shas = {}
+
+    async function getFile(location) {
+      let [ acct, repo, branch, ...path ] = location.split('/')
+      path = path.join('/')
+      // console.log(`getGhFile: acct=${acct} repo=${repo} branch=${branch} path='${path} token=${authToken}`)
+      let url = `https://api.github.com/repos/${acct}/${repo}/contents/${path}?ref=${branch}`
+      let resp = authToken ? await fetch(url, { headers: {Authorization: `Token ${authToken}`} }) : await fetch(url)
+      if (resp.status === 200) {
+        resp = await resp.json()
+        shas[location] = resp.sha
+        return { sha: resp.sha, content: JSON.parse(decodeURIComponent(escape(atob(resp.content)))) }
+      } else if (resp.status === 403 || resp.status === 401) { // access problem, possibly api rate limit exceeded
+        url = `https://raw.githubusercontent.com/${acct}/${repo}/${branch}/${path}`
+        resp = await fetch(url)
+        return resp.ok ? { sha: null, content: await resp.json() } : null
+      } else return null
+    }
+
+    async function getSha(location) {
+      if (shas[location]) return shas[location]
+      let [ acct, repo, branch, ...path ] = location.split('/')
+      path = path.join('/')
+      // console.log(`getSha: acct=${acct} repo=${repo} branch=${branch} path='${path} token=${authToken}`)
+      let url = `https://api.github.com/repos/${acct}/${repo}/contents/${path}?ref=${branch}`
+      let resp = authToken ? await fetch(url, { cache: 'no-cache', headers: {Authorization: `Token ${authToken}`} }) : await fetch(url, { cache: 'no-cache'} )
+      if (resp.ok) {
+        resp = await resp.json()
+        shas[location] = resp.sha
+        return resp.sha
+      } else return null
+    }
+
+    async function putFile(location, content, sha) {
+      let [ acct, repo, branch, ...path ] = location.split('/')
+      path = path.join('/')
+      let url = `https://api.github.com/repos/${acct}/${repo}/contents/${path}`
+      sha = sha || shas[location] || await getSha(location)
+      // console.log(`putFile: acct=${acct} repo=${repo} branch=${branch} path='${path} sha=${sha} token=${authToken}`)
+      let payload = { branch, content: b64EncodeUnicode(content), message: 'API commit'}
+      if (sha) payload.sha = sha
+      let resp = authToken 
+        ? await fetch(url, { method: 'PUT', body: JSON.stringify(payload), headers: {Authorization: `Token ${authToken}`} }) 
+        : await fetch(url, { method: 'PUT', body: JSON.stringify(payload) }) 
+      if (resp.ok) shas[location] = (await resp.json()).content.sha
+      return {status:resp.status, statusText:resp.statusText, sha}
+    }
+    
+    let imageId = md5Id(imageUrl)
+    let annotationsLocation = `${annotationsBaseLocation}/${imageId}.json`
+
+    const init = (tileSources) => {
+      // create the OpenSeadragon viewer
+      let viewer = OpenSeadragon({
+        id: 'osd',
+        prefixUrl: 'https://openseadragon.github.io/openseadragon/images/',
+        homeFillsViewer: true,
+        tileSources,
+        crossOriginPolicy: 'Anonymous'
+      })
+  
+      // Initialize the Annotorious plugin
+      let annotorious = OpenSeadragon.Annotorious(viewer, { readOnly: true })
+      annotorious.on('createAnnotation', async (anno) => {
+        anno.id = md5Id(anno.id)
+        anno.target.id = imageId
+        putFile(annotationsLocation, JSON.stringify(annotorious.getAnnotations(), null, 2))
+      })
+      annotorious.on('updateAnnotation', async (anno) => putFile(annotationsLocation, JSON.stringify(annotorious.getAnnotations(), null, 2)))
+      annotorious.on('deleteAnnotation', async (anno) => putFile(annotationsLocation, JSON.stringify(annotorious.getAnnotations(), null, 2)))
+  
+      // Load annotations from the GH repo
+      getFile(annotationsLocation).then(annotations => { annotations?.content.forEach(anno => annotorious.addAnnotation(anno) )})
+
+    }
+
+  </script>
+</body>
+</html>
