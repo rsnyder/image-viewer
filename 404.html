@@ -6,7 +6,7 @@
   <title>Document</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/annotorious.min.css">
   <style>
-    #osd { width: 100%; height: 100%; }
+    #osd { width: 100%; }
     .caption { margin-top: .5em; font-weight: bold; }
   </style>
 </head>
@@ -35,6 +35,7 @@
 
     let inIframe = window.location !== window.parent.location
     console.log(`In iFrame: ${inIframe} height: ${height()}`)
+    document.querySelector('#osd').style.height = `${height()}px`
 
     const md5Id = (url) => md5(url).slice(0,8)
     const sha256 = async (str) => {
