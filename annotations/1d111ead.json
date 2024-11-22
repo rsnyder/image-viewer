@@ -60,5 +60,26 @@
       "id": "1d111ead"
     },
     "id": "66477c28"
+  },
+  {
+    "@context": "http://www.w3.org/ns/anno.jsonld",
+    "type": "Annotation",
+    "body": [
+      {
+        "type": "TextualBody",
+        "value": "4th",
+        "purpose": "commenting"
+      }
+    ],
+    "target": {
+      "source": "https://upload.wikimedia.org/wikipedia/commons/7/70/017_Great_blue_turaco_at_Kibale_forest_National_Park_Photo_by_Giles_Laurent.jpg",
+      "selector": {
+        "type": "FragmentSelector",
+        "conformsTo": "http://www.w3.org/TR/media-frags/",
+        "value": "xywh=pixel:2404.982666015625,523.8372802734375,847.746337890625,553.1602783203125"
+      },
+      "id": "1d111ead"
+    },
+    "id": "331a0339"
   }
 ]
