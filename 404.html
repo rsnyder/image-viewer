@@ -6,7 +6,7 @@
   <title>Document</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/annotorious.min.css">
   <style>
-    #osd { width: 100%; }
+    #osd { width: 100%; height: 100%; }
     .caption { margin-top: .5em; font-weight: bold; }
   </style>
 </head>
@@ -19,8 +19,22 @@
   <script src="https://cdn.jsdelivr.net/npm/js-md5@0.8.3/src/md5.min.js"></script>
   <script type="module">
 
+    const height = () => {
+        const body = document.body;
+        const html = document.documentElement;
+        
+        // Calculate the full height of the content
+        return Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            html.clientHeight,
+            html.scrollHeight,
+            html.offsetHeight
+        )
+    }
+
     let inIframe = window.location !== window.parent.location
-    console.log(`In iFrame: ${inIframe}`)
+    console.log(`In iFrame: ${inIframe} height: ${height()}`)
 
     const md5Id = (url) => md5(url).slice(0,8)
     const sha256 = async (str) => {
