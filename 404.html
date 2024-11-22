@@ -19,6 +19,13 @@
   <script src="https://cdn.jsdelivr.net/npm/js-md5@0.8.3/src/md5.min.js"></script>
   <script type="module">
 
+    let inIframe = window.location !== window.parent.location
+    console.log(`In iFrame: ${inIframe}`)
+
+    if (inIframe) {
+        console.log(window.parent)
+    }
+
     const md5Id = (url) => md5(url).slice(0,8)
     const sha256 = async (str) => {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
