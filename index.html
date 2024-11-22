@@ -51,12 +51,15 @@
       return found.length >= seq ? found[seq-1] : null
     }
 
-    const imageSource = location.pathname
+    const pathElems = location.pathname.split('/').filter(e => e)
+    const isGhp = location.hostname.indexOf('.github.io') > 0
+
+    const imageSource = pathElems.slice(isGhp ? 1 : 0).join('/')
     let imageUrl 
 
-    if (imageSource .indexOf('wc:') === 1) {
-      const wcFile = decodeURIComponent(imageSource.slice(4).replace(/File:/,'')).replace(/ /g,'_')
-      window.history.replaceState({}, '', `/wc:${wcFile}`)
+    if (imageSource.indexOf('wc:') === 0) {
+      const wcFile = decodeURIComponent(imageSource.slice(3).replace(/File:/,'')).replace(/ /g,'_')
+      window.history.replaceState({}, '', `${isGhp ? '/' + pathElems[0] : ''}/wc:${wcFile}`)
       const hash = md5(wcFile)
       imageUrl = `https://upload.wikimedia.org/wikipedia/commons/${hash.slice(0,1)}/${hash.slice(0,2)}/${wcFile}`
       fetch(`https://iiif.mdpress.io/wc:${wcFile}/manifest.json`).then(resp => resp.json()).then(manifest => {
