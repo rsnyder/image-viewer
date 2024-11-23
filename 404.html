@@ -4,45 +4,90 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/themes/light.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/annotorious.min.css">
   <style>
     body { margin: 0; padding: 0; font-family: sans-serif; }
     main { display: flex; flex-direction: column; width: 100%; height: 100dvh; }
     #osd { width: 100%; height: 100%; }
-    .caption { font-weight: bold; padding: .5em; width: 100%; }
+    .a9s-annotationlayer { visibility: hidden; }
     svg.a9s-annotationlayer .a9s-selection .a9s-inner, svg.a9s-annotationlayer .a9s-annotation .a9s-inner  { stroke-width: 3; stroke: rgba(255,255,0,1.0); }
     .a9s-selection-mask { stroke: none; fill: rgba(0,0,0,0.4); pointer-events: none; }
+
+    .caption {
+      display: flex;
+      align-items: center;
+      gap: 0.2em;
+      background-color: white;
+    } 
+    .annos {
+      display: flex;
+      position: relative;
+      width: 1.8em;
+      padding: 0.5em;
+      cursor: pointer;
+    }
+    .manifestButton {
+      width: 1.3em;
+      height: 1.3em;
+      cursor: pointer;
+    }
+    .annos svg {
+      visibility: hidden;
+    }
+    .annos sl-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      visibility: hidden;
+    }
+    .clamp {
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      /* margin-bottom: 6px; */
+    }
+
   </style>
 </head>
 <body>
   <main>
     <div id="osd"></div>
-    <div class="caption"></div>
+    <div class="caption">
+      <div class="annos">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M160 368c26.5 0 48 21.5 48 48v16l72.5-54.4c8.3-6.2 18.4-9.6 28.8-9.6H448c8.8 0 16-7.2 16-16V64c0-8.8-7.2-16-16-16H64c-8.8 0-16 7.2-16 16V352c0 8.8 7.2 16 16 16h96zm48 124l-.2 .2-5.1 3.8-17.1 12.8c-4.8 3.6-11.3 4.2-16.8 1.5s-8.8-8.2-8.8-14.3V474.7v-6.4V468v-4V416H112 64c-35.3 0-64-28.7-64-64V64C0 28.7 28.7 0 64 0H448c35.3 0 64 28.7 64 64V352c0 35.3-28.7 64-64 64H309.3L208 492z"/></svg>
+        <sl-badge variant="primary" pill>1</sl-badge>
+      </div>
+      <div class="label clamp"></div>
+      <svg class="manifestButton" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 512"><path d="M64 360a56 56 0 1 0 0 112 56 56 0 1 0 0-112zm0-160a56 56 0 1 0 0 112 56 56 0 1 0 0-112zM120 96A56 56 0 1 0 8 96a56 56 0 1 0 112 0z"/></svg>
+    </div>
+    <sl-dialog label="IIIF Manifest">
+      <pre><slot>IIIF Manifest will go here...</slot></pre>
+      <sl-button slot="footer" variant="primary">Close</sl-button>
+    </sl-dialog>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.0/build/openseadragon/openseadragon.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@recogito/annotorious-openseadragon@2.7.14/dist/openseadragon-annotorious.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/js-md5@0.8.3/src/md5.min.js"></script>
-  <script type="module">
+
+  <script type="module" data-shoelace="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn">
+
+    import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/components/badge/badge.js';
+    import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/components/button/button.js';
+    import 'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/components/dialog/dialog.js';
 
     const osd = document.querySelector('#osd')
-    const height = () => {
-        const body = document.body;
-        const html = document.documentElement;
-        
-        // Calculate the full height of the content
-        return Math.max(
-            body.scrollHeight,
-            body.offsetHeight,
-            html.clientHeight,
-            html.scrollHeight,
-            html.offsetHeight
-        )
-    }
-
-    let inIframe = window.location !== window.parent.location
-    console.log(`In iFrame: ${inIframe} height: ${height()}`)
-    // osd.style.height = `${height()}px`
+    const caption = document.querySelector('.caption')
+    const captionText = caption.querySelector('.label')
+    const annosEl = caption.querySelector('.annos')
+    const annoIcon = annosEl.querySelector('svg')
+    const annoBadge = annosEl.querySelector('sl-badge')
+    const manifestDialog = document.querySelector('sl-dialog')
+    let annoLayer
+    let iiifManifest
+    let annotations = []
 
     const md5Id = (url) => md5(url).slice(0,8)
     const sha256 = async (str) => {
@@ -76,6 +121,23 @@
       return found.length >= seq ? found[seq-1] : null
     }
 
+    const showAnnotations = () => annoLayer.style.visibility = 'visible'
+    const hideAnnotations = () => annoLayer.style.visibility = 'hidden'
+    annosEl.onclick = () => {
+      annoLayer.style.visibility === 'visible' ? hideAnnotations() : showAnnotations()
+      annoBadge.style.visibility = annotations.length ? annoLayer.style.visibility === 'hidden' ? 'visible' : 'hidden' : 'hidden'
+    }
+    manifestDialog.querySelector('sl-button[slot="footer"]').onclick = () => manifestDialog.hide()
+    caption.querySelector('.manifestButton').onclick = () => manifestDialog.show()
+
+    const setCaption = () => {
+      captionText.innerHTML = (iiifManifest?.label?.en || iiifManifest?.label?.none || Object.values(iiifManifest.label)).join(' ')
+      annoBadge.innerHTML = annotations.length
+      annoIcon.style.visibility = (annotations.length || authToken) ? 'visible' : 'hidden'
+      console.log(annoLayer.style.visibility)
+      annoBadge.style.visibility = annotations.length ? 'visible' : 'hidden'
+    }
+
     const pathElems = location.pathname.split('/').filter(e => e)
     const isGhp = location.hostname.indexOf('.github.io') > 0
 
@@ -88,14 +150,15 @@
       const hash = md5(wcFile)
       imageUrl = `https://upload.wikimedia.org/wikipedia/commons/${hash.slice(0,1)}/${hash.slice(0,2)}/${wcFile}`
       fetch(`https://iiif.mdpress.io/wc:${wcFile}/manifest.json`).then(resp => resp.json()).then(manifest => {
-        console.log(manifest)
+        iiifManifest = manifest
+        manifestDialog.querySelector('slot').innerHTML = JSON.stringify(manifest, null, 2)
         const itemInfo = findItem({type:'Annotation', motivation:'painting'}, manifest, 1)?.body
         const tileSource = itemInfo.service
           ? `${(itemInfo.service[0].id || itemInfo.service[0]['@id'])}/info.json`
           : { url: itemInfo.id, type: 'image', buildPyramid: true }
         init(tileSource)
-        const label = (manifest?.label?.en || manifest?.label?.none || Object.values(manifest.label)).join(' ')
-        document.querySelector('.caption').innerHTML = label      })
+        setCaption()
+      })
     }
 
     const shas = {}
@@ -169,8 +232,14 @@
       annotorious.on('updateAnnotation', async (anno) => putFile(annotationsLocation, JSON.stringify(annotorious.getAnnotations(), null, 2)))
       annotorious.on('deleteAnnotation', async (anno) => putFile(annotationsLocation, JSON.stringify(annotorious.getAnnotations(), null, 2)))
   
+      annoLayer = osd.querySelector('.a9s-annotationlayer')
+
       // Load annotations from the GH repo
-      getFile(annotationsLocation).then(annotations => { annotations?.content.forEach(anno => annotorious.addAnnotation(anno) )})
+      getFile(annotationsLocation).then(annos => { 
+        annotations = annos?.content || []
+        annotations.forEach(anno => annotorious.addAnnotation(anno))
+        setCaption()
+      })
 
     }
 
