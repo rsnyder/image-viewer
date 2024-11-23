@@ -10,6 +10,8 @@
     main { display: flex; flex-direction: column; width: 100%; height: 100dvh; }
     #osd { width: 100%; height: 100%; }
     .caption { font-weight: bold; padding: .5em; width: 100%; }
+    svg.a9s-annotationlayer .a9s-selection .a9s-inner, svg.a9s-annotationlayer .a9s-annotation .a9s-inner  { stroke-width: 3; stroke: rgba(255,255,0,1.0); }
+    .a9s-selection-mask { stroke: none; fill: rgba(0,0,0,0.4); pointer-events: none; }
   </style>
 </head>
 <body>
@@ -153,6 +155,7 @@
         id: 'osd',
         prefixUrl: 'https://openseadragon.github.io/openseadragon/images/',
         // homeFillsViewer: true,
+        showFullPageControl: true,
         tileSources,
         crossOriginPolicy: 'Anonymous'
       })
